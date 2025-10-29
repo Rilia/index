@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Triết xin lỗi Ade – Heart Burst</title>
+  <meta name="description" content="Tim nở bung bằng hạt; chữ 'Triết xin lỗi Ade' ở giữa; Yes/No hai bên; chữ dài đồng bộ theo nhạc; hộp thoại trái tim cho cả Yes và No." />
+  <style>
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(900px 520px at 70% -10%, rgba(255,95,163,.16), transparent),
+                  radial-gradient(700px 460px at -10% 40%, rgba(255,45,115,.18), transparent),
+                  #0b0f1e;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Canvas full-screen */
+    #pinkboard { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+    /* Subtext block centered under heart */
+    .subtext {
+      position: fixed; left: 50%; bottom: clamp(110px, 18vh, 210px); transform: translateX(-50%);
+      width: min(92vw, 860px);
+      text-align: center; line-height: 1.6; color: #f8f9fb;
+      font-size: clamp(15px, 2.3vmin, 19px);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,95,163,.25);
+      border-radius: 16px; padding: 14px 18px;
+      box-shadow: 0 8px 28px rgba(255,45,115,.20);
+      transition: box-shadow .2s ease;
+    }
+    .subtext.beat { box-shadow: 0 0 0 0 rgba(255,95,163,.6), 0 10px 34px rgba(255,45,115,.28); }
+
+    .chunk { opacity: 1; transform: none; filter: none; }
+    .sync .chunk { opacity: 0; transform: translateY(6px); filter: blur(.5px); transition: opacity .6s ease, transform .6s ease, filter .6s ease; }
+    .sync .chunk.show { opacity: 1; transform: none; filter: none; }
+    .ask { font-weight: 800; }
+
+    /* YES / NO buttons on both sides */
+    .choice { position: fixed; top: 50%; transform: translateY(-50%); }
+    .left { left: 5%; }
+    .right { right: 5%; }
+
+    .btn {
+      font-size: clamp(18px, 3vmin, 28px);
+      padding: 18px 32px;
+      border-radius: 18px;
+      border: none;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(90deg, #ff5fa3, #ff2d73);
+      box-shadow: 0 10px 30px rgba(255,45,115,.4);
+      transition: transform .15s ease, filter .2s ease;
+    }
+    .btn:hover { transform: scale(1.08); filter: brightness(1.1); }
+
+    /* Toast message (fallback) */
+    .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: linear-gradient(90deg, #ff5fa3, #ff2d73); color: #fff; padding: 12px 22px; border-radius: 14px; box-shadow: 0 10px 30px rgba(255,45,115,.35); font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+    .toast.show { opacity: 1; }
+
+    /* Heart modals (code cũ, chỉ thêm xuống dòng trong text) */
+    .backdrop { position: fixed; inset: 0; background: rgba(5,10,25,.65); display: none; place-items: center; z-index: 10; }
+    .backdrop.show { display: grid; }
+    .heart-modal { position: relative; width: min(520px, 92vw); padding: 22px 22px 26px; text-align: center; }
+    .heart-modal svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 12px 40px rgba(255,45,115,.45)); }
+    .heart-modal .text { position: absolute; inset: 0; display: grid; place-items: center; padding: 32px; }
+    .heart-modal .text p { margin: 0; font-size: clamp(16px, 2.4vmin, 20px); line-height: 1.6; }
+    .ok { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <!-- Heart particles canvas; text drawn on canvas center -->
+  <canvas id="pinkboard"></canvas>
+
+  <!-- Subtext paragraph (visible by default; will sync when music starts) -->
+  <p class="subtext" id="subtext">
+    <span id="c1" class="chunk">Anh rất thích giọng em. Anh không giỏi văn thơ để làm em cười hay hết giận ngay</span>
+    <br>
+    <span id="c2" class="chunk">nhưng mà nếu có thể thì anh sẽ ôm ghì em tới lúc em chịu tha lỗi cho anh.</span>
+    <br>
+    <span id="c3" class="chunk ask">Tha lỗi cho anh nhé?</span>
+  </p>
+
+  <!-- YES / NO choices placed on both sides of the heart -->
+  <div class="choice left"><button id="yesBtn" class="btn">Yes 💖</button></div>
+  <div class="choice right"><button id="noBtn" class="btn">No 💔</button></div>
+
+  <!-- Thank-you toast (fallback) -->
+  <div id="toast" class="toast">Cảm ơn em đã hết giận anh 💖</div>
+
+  <!-- Heart-shaped modal for NO -->
+  <div id="modalNo" class="backdrop">
+    <div class="heart-modal">
+      <svg viewBox="-60 -60 120 120" aria-hidden="true">
+        <defs>
+          <linearGradient id="gNo" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffd0e1"/>
+            <stop offset="50%" stop-color="#ff5fa3"/>
+            <stop offset="100%" stop-color="#ff2d73"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#gNo)" d="M0,-30 C-20,-50 -55,-35 -55,-5 C-55,20 -30,35 0,55 C30,35 55,20 55,-5 C55,-35 20,-50 0,-30 Z"></path>
+      </svg>
+      <div class="text">
+        <div>
+          <p><strong>Ade xinh đẹp mà<br>người xinh đẹp sẽ không giận lâu<br>nên bấm YES nhé 💕</strong></p>
+          <button id="okNo" class="btn ok">OKE 💗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heart-shaped modal for YES (màu hồng giống NO) -->
+  <div id="modalYes" class="backdrop">
+    <div class="heart-modal">
+      <svg viewBox="-60 -60 120 120" aria-hidden="true">
+        <defs>
+          <linearGradient id="gYes" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffd0e1"/>
+            <stop offset="50%" stop-color="#ff5fa3"/>
+            <stop offset="100%" stop-color="#ff2d73"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#gYes)" d="M0,-30 C-20,-50 -55,-35 -55,-5 C-55,20 -30,35 0,55 C30,35 55,20 55,-5 C55,-35 20,-50 0,-30 Z"></path>
+      </svg>
+      <div class="text">
+        <div>
+          <p><strong>Cảm ơn em đã cho anh cơ hội 💖</strong><br> Anh hứa sẽ nhẹ nhàng và tinh tế hơn mỗi ngày.</p>
+          <button id="okYes" class="btn ok">OKE 💗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fixed audio URL -->
+  <audio id="bgm" preload="auto" loop></audio>
+
+  <script>
+  /* ================================
+     Config
+     ================================ */
+  const MUSIC_URL = 'music.mp3'; // 👉 Đặt file mp3 cùng thư mục và đặt tên là music.mp3
+
+  /* ================================
+     Heart particles; centered title text; YES/NO dialogs; subtext sync
+     ================================ */
+  const settings = { particles: { length: 520, duration: 2, velocity: 100, effect: -0.75, size: 32 } };
+
+  // rAF polyfill
+  (function(){let b=0;const c=["ms","moz","webkit","o"];for(let a=0;a<c.length&&!window.requestAnimationFrame;++a){window.requestAnimationFrame=window[c[a]+"RequestAnimationFrame"];window.cancelAnimationFrame=window[c[a]+"CancelAnimationFrame"]||window[c[a]+"CancelRequestAnimationFrame"]}if(!window.requestAnimationFrame){window.requestAnimationFrame=function(h){const d=Date.now();const f=Math.max(0,16-(d-b));const g=setTimeout(()=>h(d+f),f);b=d+f;return g}}if(!window.cancelAnimationFrame){window.cancelAnimationFrame=function(d){clearTimeout(d)}}})();
+
+  // Geometry & Particles
+  function Point(x=0,y=0){ this.x=x; this.y=y; }
+  Point.prototype.clone=function(){ return new Point(this.x,this.y) };
+  Point.prototype.length=function(len){ if(len===undefined) return Math.hypot(this.x,this.y); this.normalize(); this.x*=len; this.y*=len; return this; };
+  Point.prototype.normalize=function(){ const l=this.length()||1; this.x/=l; this.y/=l; return this; };
+
+  function Particle(){ this.position=new Point(); this.velocity=new Point(); this.acceleration=new Point(); this.age=0; }
+  Particle.prototype.initialize=function(x,y,dx,dy){ this.position.x=x; this.position.y=y; this.velocity.x=dx; this.velocity.y=dy; this.acceleration.x=dx*settings.particles.effect; this.acceleration.y=dy*settings.particles.effect; this.age=0; };
+  Particle.prototype.update=function(dt){ this.position.x+=this.velocity.x*dt; this.position.y+=this.velocity.y*dt; this.velocity.x+=this.acceleration.x*dt; this.velocity.y+=this.acceleration.y*dt; this.age+=dt; };
+  Particle.prototype.draw=function(ctx,img){ const ease=t=>{t--; return t*t*t+1}; const s=img.width*ease(this.age/settings.particles.duration); ctx.globalAlpha=1-this.age/settings.particles.duration; ctx.drawImage(img,this.position.x-s/2,this.position.y-s/2,s,s); };
+
+  function ParticlePool(len){ this.particles=new Array(len).fill(0).map(()=>new Particle()); this.firstActive=0; this.firstFree=0; this.duration=settings.particles.duration; }
+  ParticlePool.prototype.add=function(x,y,dx,dy){ const p=this.particles[this.firstFree]; p.initialize(x,y,dx,dy); this.firstFree=(this.firstFree+1)%this.particles.length; if(this.firstFree===this.firstActive){ this.firstActive=(this.firstActive+1)%this.particles.length; } };
+  ParticlePool.prototype.update=function(dt){ let i; if(this.firstActive<this.firstFree){ for(i=this.firstActive;i<this.firstFree;i++) this.particles[i].update(dt); } else { for(i=this.firstActive;i<this.particles.length;i++) this.particles[i].update(dt); for(i=0;i<this.firstFree;i++) this.particles[i].update(dt); } while(this.particles[this.firstActive].age>=this.duration && this.firstActive!==this.firstFree){ this.firstActive=(this.firstActive+1)%this.particles.length; } };
+  ParticlePool.prototype.draw=function(ctx,img){ let i; if(this.firstActive<this.firstFree){ for(i=this.firstActive;i<this.firstFree;i++) this.particles[i].draw(ctx,img); } else { for(i=this.firstActive;i<this.particles.length;i++) this.particles[i].draw(ctx,img); for(i=0;i<this.firstFree;i++) this.particles[i].draw(ctx,img); } };
+  ParticlePool.prototype.reset=function(){ this.firstActive=0; this.firstFree=0; };
+
+  // Setup
+  const canvas=document.getElementById('pinkboard');
+  const ctx=canvas.getContext('2d');
+  const pool=new ParticlePool(settings.particles.length);
+  const particleRate=settings.particles.length/settings.particles.duration; // particles/sec
+  let raf, time;
+
+  function pointOnHeart(t){
+    return new Point(
+      160*Math.pow(Math.sin(t),3),
+      130*Math.cos(t)-50*Math.cos(2*t)-20*Math.cos(3*t)-10*Math.cos(4*t)+25
+    );
+  }
+
+  function drawText(ctx, text, x, y, size){
+    ctx.save();
+    ctx.font = '900 '+size+'px Arial';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.strokeText(text, x, y);
+    ctx.lineWidth = 4; ctx.strokeStyle = '#ff5fa3'; ctx.strokeText(text, x, y);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  const particleImage = (function(){
+    const c=document.createElement('canvas'); const c2=c.getContext('2d');
+    c.width=settings.particles.size; c.height=settings.particles.size;
+    function to(t){ const p=pointOnHeart(t); p.x=c.width/2 + p.x*c.width/350; p.y=c.height/2 - p.y*c.height/350; return p; }
+    c2.beginPath(); let t=-Math.PI; let p=to(t); c2.moveTo(p.x,p.y);
+    while(t<Math.PI){ t+=0.01; p=to(t); c2.lineTo(p.x,p.y); }
+    c2.closePath();
+    const grd=c2.createLinearGradient(0,0,0,c.height);
+    grd.addColorStop(0,'#ffd0e1'); grd.addColorStop(.5,'#ff5fa3'); grd.addColorStop(1,'#ff2d73');
+    c2.fillStyle=grd; c2.fill();
+    const img=new Image(); img.src=c.toDataURL(); return img;
+  })();
+
+  function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+  window.addEventListener('resize', resize);
+
+  function step(){
+    raf=requestAnimationFrame(step);
+    const now=Date.now()/1000; const dt=now-(time||now); time=now;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const amount=particleRate*dt; // spawn
+    for(let i=0;i<amount;i++){
+      const pos=pointOnHeart(Math.PI - 2*Math.PI*Math.random());
+      const dir=pos.clone().length(settings.particles.velocity);
+      pool.add(canvas.width/2 + pos.x, canvas.height/2 - pos.y, dir.x, -dir.y);
+    }
+    pool.update(dt); pool.draw(ctx, particleImage);
+    drawText(ctx, 'Triết xin lỗi Ade', canvas.width/2, canvas.height/2, 44);
+  }
+
+  function start(){ cancelAnimationFrame(raf); pool.reset(); time=null; step(); }
+
+  // ===== Subtext sync with music =====
+  const audio = document.getElementById('bgm');
+  const subtext = document.getElementById('subtext');
+  const cues = [ {t: 0.4, id: 'c1'}, {t: 2.0, id: 'c2'}, {t: 3.2, id: 'c3'} ];
+  let shown = new Set();
+  let syncRAF;
+
+  function syncLoop(){
+    syncRAF = requestAnimationFrame(syncLoop);
+    const ct = audio.currentTime || 0;
+    for (const cue of cues) {
+      if (ct >= cue.t && !shown.has(cue.id)) {
+        document.getElementById(cue.id).classList.add('show');
+        shown.add(cue.id);
+      }
+    }
+    if ((ct % 1.2) < 0.12) subtext.classList.add('beat'); else subtext.classList.remove('beat');
+  }
+
+  function startSync(){
+    cancelAnimationFrame(syncRAF);
+    shown.clear();
+    subtext.classList.add('sync');
+    document.querySelectorAll('.chunk').forEach(el=>el.classList.remove('show'));
+    syncLoop();
+  }
+
+  // ===== Buttons & Modals =====
+  function ensureMusic(){
+    if (!audio.src) audio.src = MUSIC_URL; // mp3 đặt cùng thư mục
+    audio.volume = 0.9;
+    audio.play().catch(()=>{});
+  }
+
+  const modalNo = document.getElementById('modalNo');
+  const modalYes = document.getElementById('modalYes');
+  document.getElementById('okNo').addEventListener('click', ()=>{ modalNo.classList.remove('show'); });
+  document.getElementById('okYes').addEventListener('click', ()=>{ modalYes.classList.remove('show'); });
+
+  document.getElementById('yesBtn').addEventListener('click', ()=>{ ensureMusic(); startSync(); modalYes.classList.add('show'); start(); });
+  document.getElementById('noBtn').addEventListener('click',  ()=>{ ensureMusic(); startSync(); modalNo.classList.add('show');  start(); });
+
+  // bootstrap
+  resize();
+  start();
+  </script>
+</body>
+</html>
