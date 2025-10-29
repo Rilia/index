@@ -2,74 +2,82 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Triết xin lỗi Ade – Heart Burst</title>
-  <meta name="description" content="Tim nở bung bằng hạt; chữ 'Triết xin lỗi Ade' ở giữa; Yes/No hai bên; chữ dài đồng bộ theo nhạc; hộp thoại trái tim cho cả Yes và No." />
+  <meta name="description" content="Tim nở bung hạt, 'Triết xin lỗi Ade' ở giữa; chữ dài sync theo nhạc; YES/NO hộp thoại trái tim." />
   <style>
     html, body { height: 100%; }
-    body {
-      margin: 0;
+    body{
+      margin:0;
+      height: 100dvh; /* mobile-safe */
       background: radial-gradient(900px 520px at 70% -10%, rgba(255,95,163,.16), transparent),
                   radial-gradient(700px 460px at -10% 40%, rgba(255,45,115,.18), transparent),
                   #0b0f1e;
-      color: #fff;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      overflow: hidden;
+      color:#fff;
+      font-family:'Segoe UI', Arial, sans-serif;
+      overflow:hidden;
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     /* Canvas full-screen */
-    #pinkboard { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    #pinkboard{ position:fixed; inset:0; width:100vw; height:100dvh; display:block; }
 
     /* Subtext block centered under heart */
-    .subtext {
-      position: fixed; left: 50%; bottom: clamp(110px, 18vh, 210px); transform: translateX(-50%);
-      width: min(92vw, 860px);
-      text-align: center; line-height: 1.6; color: #f8f9fb;
-      font-size: clamp(15px, 2.3vmin, 19px);
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,95,163,.25);
-      border-radius: 16px; padding: 14px 18px;
-      box-shadow: 0 8px 28px rgba(255,45,115,.20);
-      transition: box-shadow .2s ease;
+    .subtext{
+      position:fixed; left:50%; bottom:clamp(110px,18vh,210px); transform:translateX(-50%);
+      width:min(92vw,860px); text-align:center; line-height:1.6; color:#f8f9fb;
+      font-size:clamp(15px,2.3vmin,19px);
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,95,163,.25);
+      border-radius:16px; padding:14px 18px; box-shadow:0 8px 28px rgba(255,45,115,.20);
+      transition:box-shadow .2s ease;
     }
-    .subtext.beat { box-shadow: 0 0 0 0 rgba(255,95,163,.6), 0 10px 34px rgba(255,45,115,.28); }
+    .subtext.beat{ box-shadow:0 0 0 0 rgba(255,95,163,.6), 0 10px 34px rgba(255,45,115,.28); }
 
-    .chunk { opacity: 1; transform: none; filter: none; }
-    .sync .chunk { opacity: 0; transform: translateY(6px); filter: blur(.5px); transition: opacity .6s ease, transform .6s ease, filter .6s ease; }
-    .sync .chunk.show { opacity: 1; transform: none; filter: none; }
-    .ask { font-weight: 800; }
+    .chunk{ opacity:1; transform:none; filter:none; }
+    .sync .chunk{ opacity:0; transform:translateY(6px); filter:blur(.5px); transition:opacity .6s ease, transform .6s ease, filter .6s ease; }
+    .sync .chunk.show{ opacity:1; transform:none; filter:none; }
+    .ask{ font-weight:800; }
 
     /* YES / NO buttons on both sides */
-    .choice { position: fixed; top: 50%; transform: translateY(-50%); }
-    .left { left: 5%; }
-    .right { right: 5%; }
+    .choice{ position:fixed; top:50%; transform:translateY(-50%); }
+    .left{ left:5%; } .right{ right:5%; }
 
-    .btn {
-      font-size: clamp(18px, 3vmin, 28px);
-      padding: 18px 32px;
-      border-radius: 18px;
-      border: none;
-      font-weight: 800;
-      cursor: pointer;
-      color: white;
-      background: linear-gradient(90deg, #ff5fa3, #ff2d73);
-      box-shadow: 0 10px 30px rgba(255,45,115,.4);
-      transition: transform .15s ease, filter .2s ease;
+    .btn{
+      font-size:clamp(18px,3vmin,28px);
+      padding:18px 32px; border-radius:18px; border:none; font-weight:800; cursor:pointer; color:#fff;
+      background:linear-gradient(90deg,#ff5fa3,#ff2d73); box-shadow:0 10px 30px rgba(255,45,115,.4);
+      transition:transform .15s ease, filter .2s ease;
     }
-    .btn:hover { transform: scale(1.08); filter: brightness(1.1); }
+    .btn:hover{ transform:scale(1.08); filter:brightness(1.1); }
 
-    /* Toast message (fallback) */
-    .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: linear-gradient(90deg, #ff5fa3, #ff2d73); color: #fff; padding: 12px 22px; border-radius: 14px; box-shadow: 0 10px 30px rgba(255,45,115,.35); font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
-    .toast.show { opacity: 1; }
+    /* Floating music button (autoplay fallback) */
+    .music-btn{ position:fixed; bottom:18px; left:18px; z-index:11; background:linear-gradient(90deg,#ff5fa3,#ff2d73);
+      color:#fff; border:none; border-radius:999px; padding:12px 16px; font-weight:800; box-shadow:0 8px 24px rgba(255,45,115,.4);
+      cursor:pointer; display:none;
+    }
+    .music-btn.show{ display:block; }
 
-    /* Heart modals (code cũ, chỉ thêm xuống dòng trong text) */
-    .backdrop { position: fixed; inset: 0; background: rgba(5,10,25,.65); display: none; place-items: center; z-index: 10; }
-    .backdrop.show { display: grid; }
-    .heart-modal { position: relative; width: min(520px, 92vw); padding: 22px 22px 26px; text-align: center; }
-    .heart-modal svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 12px 40px rgba(255,45,115,.45)); }
-    .heart-modal .text { position: absolute; inset: 0; display: grid; place-items: center; padding: 32px; }
-    .heart-modal .text p { margin: 0; font-size: clamp(16px, 2.4vmin, 20px); line-height: 1.6; }
-    .ok { margin-top: 12px; }
+    /* Heart modals (code cũ – đẹp, đã xuống dòng cho gọn) */
+    .backdrop{ position:fixed; inset:0; background:rgba(5,10,25,.65); display:none; place-items:center; z-index:10; }
+    .backdrop.show{ display:grid; }
+    .heart-modal{ position:relative; width:min(520px,92vw); padding:22px 22px 26px; text-align:center; }
+    .heart-modal svg{ width:100%; height:auto; display:block; filter:drop-shadow(0 12px 40px rgba(255,45,115,.45)); }
+    .heart-modal .text{ position:absolute; inset:0; display:grid; place-items:center; padding:32px; }
+    .heart-modal .text p{ margin:0; font-size:clamp(16px,2.4vmin,20px); line-height:1.6; word-break:break-word; }
+    .ok{ margin-top:12px; }
+
+    /* Mobile layout tweaks */
+    @media (max-width: 540px){
+      .choice{ top:auto; bottom: calc(20px + env(safe-area-inset-bottom)); transform:none; }
+      .left{ left:8%; } .right{ right:8%; }
+      .btn{ font-size:18px; padding:14px 18px; border-radius:14px; }
+      .subtext{ bottom:28vh; font-size:15px; }
+    }
+    @media (max-width: 380px){
+      .left, .right{ left:50%; right:auto; transform:translateX(-50%); }
+      .left{ bottom: calc(70px + env(safe-area-inset-bottom)); }
+      .right{ bottom: calc(20px + env(safe-area-inset-bottom)); }
+    }
   </style>
 </head>
 <body>
@@ -78,21 +86,16 @@
 
   <!-- Subtext paragraph (visible by default; will sync when music starts) -->
   <p class="subtext" id="subtext">
-    <span id="c1" class="chunk">Anh rất thích giọng em. Anh không giỏi văn thơ để làm em cười hay hết giận ngay</span>
-    <br>
-    <span id="c2" class="chunk">nhưng mà nếu có thể thì anh sẽ ôm ghì em tới lúc em chịu tha lỗi cho anh.</span>
-    <br>
+    <span id="c1" class="chunk">Anh rất thích giọng em. Anh không giỏi văn thơ để làm em cười hay hết giận ngay</span><br>
+    <span id="c2" class="chunk">nhưng mà nếu có thể thì anh sẽ ôm ghì em tới lúc em chịu tha lỗi cho anh.</span><br>
     <span id="c3" class="chunk ask">Tha lỗi cho anh nhé?</span>
   </p>
 
-  <!-- YES / NO choices placed on both sides of the heart -->
+  <!-- YES / NO choices -->
   <div class="choice left"><button id="yesBtn" class="btn">Yes 💖</button></div>
   <div class="choice right"><button id="noBtn" class="btn">No 💔</button></div>
 
-  <!-- Thank-you toast (fallback) -->
-  <div id="toast" class="toast">Cảm ơn em đã hết giận anh 💖</div>
-
-  <!-- Heart-shaped modal for NO -->
+  <!-- Modal NO -->
   <div id="modalNo" class="backdrop">
     <div class="heart-modal">
       <svg viewBox="-60 -60 120 120" aria-hidden="true">
@@ -114,7 +117,7 @@
     </div>
   </div>
 
-  <!-- Heart-shaped modal for YES (màu hồng giống NO) -->
+  <!-- Modal YES (tim hồng giống NO) -->
   <div id="modalYes" class="backdrop">
     <div class="heart-modal">
       <svg viewBox="-60 -60 120 120" aria-hidden="true">
@@ -129,26 +132,29 @@
       </svg>
       <div class="text">
         <div>
-          <p><strong>Cảm ơn em đã cho anh cơ hội 💖</strong><br> Anh hứa sẽ nhẹ nhàng và tinh tế hơn mỗi ngày.</p>
+          <p><strong>Cảm ơn em đã cho anh cơ hội 💖</strong><br>Anh hứa sẽ nhẹ nhàng và tinh tế hơn mỗi ngày.</p>
           <button id="okYes" class="btn ok">OKE 💗</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Fixed audio URL -->
-  <audio id="bgm" preload="auto" loop></audio>
+  <!-- Audio -->
+  <audio id="bgm" preload="auto" loop playsinline></audio>
+  <button id="musicBtn" class="music-btn" aria-label="Bật nhạc">🎵 Bật nhạc</button>
 
   <script>
-  /* ================================
-     Config
-     ================================ */
-  const MUSIC_URL = 'music.mp3'; // 👉 Đặt file mp3 cùng thư mục và đặt tên là music.mp3
+  /* ===== Config ===== */
+  const MUSIC_URL = 'music.mp3'; // để file music.mp3 cùng thư mục với index.html
 
-  /* ================================
-     Heart particles; centered title text; YES/NO dialogs; subtext sync
-     ================================ */
+  /* ===== Heart particles; centered title; YES/NO; subtext sync ===== */
   const settings = { particles: { length: 520, duration: 2, velocity: 100, effect: -0.75, size: 32 } };
+
+  // Nhẹ hơn trên màn hình nhỏ cho mượt
+  if (window.matchMedia('(max-width: 480px)').matches) {
+    settings.particles.length = 360;
+    settings.particles.size = 26;
+  }
 
   // rAF polyfill
   (function(){let b=0;const c=["ms","moz","webkit","o"];for(let a=0;a<c.length&&!window.requestAnimationFrame;++a){window.requestAnimationFrame=window[c[a]+"RequestAnimationFrame"];window.cancelAnimationFrame=window[c[a]+"CancelAnimationFrame"]||window[c[a]+"CancelRequestAnimationFrame"]}if(!window.requestAnimationFrame){window.requestAnimationFrame=function(h){const d=Date.now();const f=Math.max(0,16-(d-b));const g=setTimeout(()=>h(d+f),f);b=d+f;return g}}if(!window.cancelAnimationFrame){window.cancelAnimationFrame=function(d){clearTimeout(d)}}})();
@@ -170,7 +176,7 @@
   ParticlePool.prototype.draw=function(ctx,img){ let i; if(this.firstActive<this.firstFree){ for(i=this.firstActive;i<this.firstFree;i++) this.particles[i].draw(ctx,img); } else { for(i=this.firstActive;i<this.particles.length;i++) this.particles[i].draw(ctx,img); for(i=0;i<this.firstFree;i++) this.particles[i].draw(ctx,img); } };
   ParticlePool.prototype.reset=function(){ this.firstActive=0; this.firstFree=0; };
 
-  // Setup
+  // Setup canvas
   const canvas=document.getElementById('pinkboard');
   const ctx=canvas.getContext('2d');
   const pool=new ParticlePool(settings.particles.length);
@@ -214,7 +220,7 @@
     raf=requestAnimationFrame(step);
     const now=Date.now()/1000; const dt=now-(time||now); time=now;
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    const amount=particleRate*dt; // spawn
+    const amount=particleRate*dt;
     for(let i=0;i<amount;i++){
       const pos=pointOnHeart(Math.PI - 2*Math.PI*Math.random());
       const dir=pos.clone().length(settings.particles.velocity);
@@ -254,23 +260,31 @@
   }
 
   // ===== Buttons & Modals =====
-  function ensureMusic(){
-    if (!audio.src) audio.src = MUSIC_URL; // mp3 đặt cùng thư mục
-    audio.volume = 0.9;
-    audio.play().catch(()=>{});
-  }
-
   const modalNo = document.getElementById('modalNo');
   const modalYes = document.getElementById('modalYes');
   document.getElementById('okNo').addEventListener('click', ()=>{ modalNo.classList.remove('show'); });
   document.getElementById('okYes').addEventListener('click', ()=>{ modalYes.classList.remove('show'); });
 
+  // Autoplay helpers
+  const musicBtn = document.getElementById('musicBtn');
+  function ensureMusic(){
+    if(!audio.src) audio.src = MUSIC_URL; // mp3 đặt cùng thư mục
+    audio.volume = 0.9;
+    return audio.play().then(()=>{ musicBtn.classList.remove('show'); })
+      .catch(()=>{ musicBtn.classList.add('show'); }); // nếu bị chặn -> hiện nút
+  }
+
+  // iOS/Android: mở nhạc ở chạm đầu tiên (dù chạm ở đâu)
+  const unlock = () => { ensureMusic(); window.removeEventListener('touchstart', unlock); window.removeEventListener('click', unlock); };
+  window.addEventListener('touchstart', unlock, { once:true });
+  window.addEventListener('click', unlock, { once:true });
+  musicBtn.addEventListener('click', ()=>{ ensureMusic(); });
+
   document.getElementById('yesBtn').addEventListener('click', ()=>{ ensureMusic(); startSync(); modalYes.classList.add('show'); start(); });
   document.getElementById('noBtn').addEventListener('click',  ()=>{ ensureMusic(); startSync(); modalNo.classList.add('show');  start(); });
 
   // bootstrap
-  resize();
-  start();
+  resize(); start();
   </script>
 </body>
 </html>
